@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# steer — list external steering content for a module.
+# Reads the module's config.yaml for steering: paths and trees each directory.
+# Called from SKILL.md !`command` blocks via DCI.
+#
+# Usage: steer <module_root>
+set -euo pipefail
+
+MODULE_ROOT="${1:?Usage: steer <module_root>}"
+CONFIG="$MODULE_ROOT/config.yaml"
+[ -f "$CONFIG" ] || exit 0
+
+while IFS= read -r line; do
+  dir=$(echo "$line" | sed 's/^[[:space:]]*-[[:space:]]*//' | sed 's/^["'"'"']//;s/["'"'"']$//')
+  if [ -n "$dir" ] && [ -d "$dir" ]; then
+    tree "$dir" 2>/dev/null
+  fi
+done < <(awk '/^steering:/{f=1;next} f && /^[[:space:]]*-/{print} f && /^[^ ]/{exit}' "$CONFIG")
