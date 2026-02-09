@@ -8,6 +8,7 @@ set -euo pipefail
 
 MODULE_ROOT="${1:?Usage: steer <module_root>}"
 CONFIG="$MODULE_ROOT/config.yaml"
+[ -f "$CONFIG" ] || CONFIG="$MODULE_ROOT/module.yaml"
 [ -f "$CONFIG" ] || exit 0
 
 while IFS= read -r line; do
