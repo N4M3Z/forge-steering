@@ -31,19 +31,32 @@ if [ -f "$CONFIG" ]; then
   done < <(awk '/^steering:/{f=1;next} f && /^[[:space:]]*-/{print} f && /^[^ ]/{exit}' "$CONFIG")
 fi
 
-# Emit configured vault steering directories
-for dir in "${DIRS[@]}"; do
-  if [[ "$dir" == /* ]]; then
-    abs_dir="$dir"
+# Emit configured vault steering (directories or individual files)
+for path in "${DIRS[@]}"; do
+  if [[ "$path" == /* ]]; then
+    abs_path="$path"
   else
-    abs_dir="$PROJECT_ROOT/$dir"
+    abs_path="$PROJECT_ROOT/$path"
   fi
-  [ -d "$abs_dir" ] || continue
-  for f in "$abs_dir"/*.md; do
-    [ -f "$f" ] || continue
-    strip_front "$f"
+
+  if [ -f "$abs_path" ]; then
+    # Individual file
+    strip_front "$abs_path"
     printf '\n'
-  done
+  elif [ -d "$abs_path" ]; then
+    # Directory — flat *.md files
+    for f in "$abs_path"/*.md; do
+      [ -f "$f" ] || continue
+      strip_front "$f"
+      printf '\n'
+    done
+    # Directory — nested SkillName/SKILL.md (Claude Code layout)
+    for f in "$abs_path"/*/SKILL.md; do
+      [ -f "$f" ] || continue
+      strip_front "$f"
+      printf '\n'
+    done
+  fi
 done
 
 # User overrides

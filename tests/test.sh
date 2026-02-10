@@ -210,6 +210,53 @@ assert_not_contains "skill-load.sh: strips frontmatter" "title: Custom" "$result
 result=$("$MODULE_ROOT/hooks/skill-load.sh" 2>/dev/null) || true
 assert_not_contains "skill-load.sh: no User.md → no user content" "My Overrides" "$result"
 
+# skill-load.sh with nested SkillName/SKILL.md directories
+setup
+mkdir -p "$_tmpdir/steering/TestSkill"
+cat > "$_tmpdir/steering/TestSkill/SKILL.md" <<'FIXTURE'
+---
+name: TestSkill
+description: A test skill
+---
+
+## Test Nested Rule
+
+Nested SKILL.md works.
+FIXTURE
+[ -f "$MODULE_ROOT/config.yaml" ] && command cp "$MODULE_ROOT/config.yaml" "$MODULE_ROOT/config.yaml.bak"
+printf 'steering:\n  - "%s"\n' "$_tmpdir/steering" > "$MODULE_ROOT/config.yaml"
+result=$("$MODULE_ROOT/hooks/skill-load.sh" 2>/dev/null) || true
+if [ -f "$MODULE_ROOT/config.yaml.bak" ]; then
+  command mv "$MODULE_ROOT/config.yaml.bak" "$MODULE_ROOT/config.yaml"
+else
+  command rm -f "$MODULE_ROOT/config.yaml"
+fi
+assert_contains "skill-load.sh: loads nested SKILL.md" "Nested SKILL.md works" "$result"
+assert_not_contains "skill-load.sh: strips nested frontmatter" "name: TestSkill" "$result"
+
+# skill-load.sh with individual file path
+setup
+mkdir -p "$_tmpdir"
+cat > "$_tmpdir/single-rule.md" <<'FIXTURE'
+---
+title: Single
+---
+
+## Single Rule
+
+File path works.
+FIXTURE
+[ -f "$MODULE_ROOT/config.yaml" ] && command cp "$MODULE_ROOT/config.yaml" "$MODULE_ROOT/config.yaml.bak"
+printf 'steering:\n  - "%s"\n' "$_tmpdir/single-rule.md" > "$MODULE_ROOT/config.yaml"
+result=$("$MODULE_ROOT/hooks/skill-load.sh" 2>/dev/null) || true
+if [ -f "$MODULE_ROOT/config.yaml.bak" ]; then
+  command mv "$MODULE_ROOT/config.yaml.bak" "$MODULE_ROOT/config.yaml"
+else
+  command rm -f "$MODULE_ROOT/config.yaml"
+fi
+assert_contains "skill-load.sh: loads individual file" "File path works" "$result"
+assert_not_contains "skill-load.sh: strips file frontmatter" "title: Single" "$result"
+
 # ============================================================
 # User.md tests
 # ============================================================
@@ -254,10 +301,37 @@ printf 'steering:\n  - /nonexistent/path/1234\n' > "$_tmpdir/mod/config.yaml"
 result=$("$MODULE_ROOT/bin/steer" "$_tmpdir/mod" 2>/dev/null)
 assert_empty "steer: non-existent dir → no output" "$result"
 
+# With individual file path
+setup
+mkdir -p "$_tmpdir/mod"
+printf 'single rule content\n' > "$_tmpdir/single.md"
+printf 'steering:\n  - %s\n' "$_tmpdir/single.md" > "$_tmpdir/mod/config.yaml"
+result=$("$MODULE_ROOT/bin/steer" "$_tmpdir/mod" 2>/dev/null)
+assert_contains "steer: file path → prints path" "$_tmpdir/single.md" "$result"
+
 # steer exits 0 in all cases
 exit_code=0
 "$MODULE_ROOT/bin/steer" "$_tmpdir/mod" >/dev/null 2>&1 || exit_code=$?
 assert_eq "steer exits 0" "0" "$exit_code"
+
+# ============================================================
+# Vault steering structure
+# ============================================================
+printf '\n--- Vault steering structure ---\n'
+
+VAULT_STEERING="$PROJECT_ROOT/Vaults/Personal/Orchestration/Steering"
+if [ -d "$VAULT_STEERING" ]; then
+  for skill in VaultOperations MemoryInsights BacklogJournals; do
+    [ -f "$VAULT_STEERING/$skill/SKILL.md" ] \
+      && { printf '  PASS  %s/SKILL.md exists\n' "$skill"; PASS=$((PASS + 1)); } \
+      || { printf '  FAIL  %s/SKILL.md missing\n' "$skill"; FAIL=$((FAIL + 1)); }
+  done
+  # No flat .md files remaining
+  flat_count=$(find "$VAULT_STEERING" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+  assert_eq "No flat .md files in Steering/" "0" "$flat_count"
+else
+  printf '  SKIP  Vault steering directory not found\n'
+fi
 
 # ============================================================
 # Config override
