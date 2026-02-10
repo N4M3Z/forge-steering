@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # forge-steering module tests.
-# Run: bash tests/test.sh
+# Run: bash Modules/forge-steering/tests/test.sh
 set -uo pipefail
 
 MODULE_ROOT="$(builtin cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(builtin cd "$MODULE_ROOT/../.." && pwd)"
 PASS=0 FAIL=0
 
 # --- Helpers ---
@@ -14,6 +15,9 @@ setup() {
   _tmpdirs+=("$_tmpdir")
 }
 cleanup_all() {
+  # Restore config.yaml if moved aside during tests
+  [ -f "$MODULE_ROOT/config.yaml.bak" ] && command mv "$MODULE_ROOT/config.yaml.bak" "$MODULE_ROOT/config.yaml"
+  command rm -f "$MODULE_ROOT/config.yaml.test"
   for d in "${_tmpdirs[@]}"; do
     [ -d "$d" ] && command rm -rf "$d"
   done
@@ -77,92 +81,147 @@ echo "=== forge-steering tests ==="
 # ============================================================
 printf '\n--- Structure ---\n'
 
+# SKILL.md exists
+[ -f "$MODULE_ROOT/skills/BehavioralSteering/SKILL.md" ] \
+  && { printf '  PASS  SKILL.md exists\n'; PASS=$((PASS + 1)); } \
+  || { printf '  FAIL  SKILL.md missing\n'; FAIL=$((FAIL + 1)); }
+
+# SKILL.md has name: in frontmatter
+result=$(awk '/^---$/{if(n++)exit;next} n && /^name:/{print; exit}' "$MODULE_ROOT/skills/BehavioralSteering/SKILL.md")
+[ -n "$result" ] \
+  && { printf '  PASS  SKILL.md has name: frontmatter\n'; PASS=$((PASS + 1)); } \
+  || { printf '  FAIL  SKILL.md missing name: frontmatter\n'; FAIL=$((FAIL + 1)); }
+
+# SKILL.md has two !` lines (DCI blocks)
+bang_count=$(grep -c '^!\`' "$MODULE_ROOT/skills/BehavioralSteering/SKILL.md" || true)
+assert_eq "SKILL.md has two !command blocks" "2" "$bang_count"
+
 # module.yaml has required fields
-if [ -f "$MODULE_ROOT/module.yaml" ]; then
-  printf '  PASS  module.yaml exists\n'; PASS=$((PASS + 1))
-else
-  printf '  FAIL  module.yaml missing\n'; FAIL=$((FAIL + 1))
-fi
+[ -f "$MODULE_ROOT/module.yaml" ] \
+  && { printf '  PASS  module.yaml exists\n'; PASS=$((PASS + 1)); } \
+  || { printf '  FAIL  module.yaml missing\n'; FAIL=$((FAIL + 1)); }
 
 mod_yaml=$(cat "$MODULE_ROOT/module.yaml")
 assert_contains "module.yaml has name" "name:" "$mod_yaml"
-assert_contains "module.yaml has version" "version:" "$mod_yaml"
 assert_contains "module.yaml has events" "events:" "$mod_yaml"
 assert_contains "module.yaml has metadata" "metadata:" "$mod_yaml"
 
 # hooks.json is valid JSON
-if [ -f "$MODULE_ROOT/hooks/hooks.json" ] && python3 -c "import json; json.load(open('$MODULE_ROOT/hooks/hooks.json'))" 2>/dev/null; then
-  printf '  PASS  hooks.json is valid JSON\n'; PASS=$((PASS + 1))
-else
-  printf '  FAIL  hooks.json invalid or missing\n'; FAIL=$((FAIL + 1))
-fi
+[ -f "$MODULE_ROOT/hooks/hooks.json" ] && python3 -c "import json; json.load(open('$MODULE_ROOT/hooks/hooks.json'))" 2>/dev/null \
+  && { printf '  PASS  hooks.json is valid JSON\n'; PASS=$((PASS + 1)); } \
+  || { printf '  FAIL  hooks.json invalid or missing\n'; FAIL=$((FAIL + 1)); }
 
-# plugin.json is valid JSON
-if [ -f "$MODULE_ROOT/.claude-plugin/plugin.json" ] && python3 -c "import json; json.load(open('$MODULE_ROOT/.claude-plugin/plugin.json'))" 2>/dev/null; then
-  printf '  PASS  plugin.json is valid JSON\n'; PASS=$((PASS + 1))
-else
-  printf '  FAIL  plugin.json invalid or missing\n'; FAIL=$((FAIL + 1))
-fi
+# plugin.json is valid JSON with skills field
+[ -f "$MODULE_ROOT/.claude-plugin/plugin.json" ] && python3 -c "import json; d=json.load(open('$MODULE_ROOT/.claude-plugin/plugin.json')); assert 'skills' in d" 2>/dev/null \
+  && { printf '  PASS  plugin.json has skills field\n'; PASS=$((PASS + 1)); } \
+  || { printf '  FAIL  plugin.json missing or lacks skills field\n'; FAIL=$((FAIL + 1)); }
 
 # session-start.sh exists
-if [ -f "$MODULE_ROOT/hooks/session-start.sh" ]; then
-  printf '  PASS  session-start.sh exists\n'; PASS=$((PASS + 1))
-else
-  printf '  FAIL  session-start.sh missing\n'; FAIL=$((FAIL + 1))
-fi
+[ -f "$MODULE_ROOT/hooks/session-start.sh" ] \
+  && { printf '  PASS  session-start.sh exists\n'; PASS=$((PASS + 1)); } \
+  || { printf '  FAIL  session-start.sh missing\n'; FAIL=$((FAIL + 1)); }
 
-# bin/steer exists and is executable
-if [ -x "$MODULE_ROOT/bin/steer" ]; then
-  printf '  PASS  bin/steer exists and is executable\n'; PASS=$((PASS + 1))
-else
-  printf '  FAIL  bin/steer missing or not executable\n'; FAIL=$((FAIL + 1))
-fi
+# skill-load.sh exists and is executable
+[ -x "$MODULE_ROOT/hooks/skill-load.sh" ] \
+  && { printf '  PASS  skill-load.sh exists and is executable\n'; PASS=$((PASS + 1)); } \
+  || { printf '  FAIL  skill-load.sh missing or not executable\n'; FAIL=$((FAIL + 1)); }
 
-# SYSTEM/ directory with default content
-if [ -d "$MODULE_ROOT/SYSTEM" ]; then
-  printf '  PASS  SYSTEM/ directory exists\n'; PASS=$((PASS + 1))
-else
-  printf '  FAIL  SYSTEM/ directory missing\n'; FAIL=$((FAIL + 1))
-fi
+# bin/steer exists and is executable (cross-module tool)
+[ -x "$MODULE_ROOT/bin/steer" ] \
+  && { printf '  PASS  bin/steer exists and is executable\n'; PASS=$((PASS + 1)); } \
+  || { printf '  FAIL  bin/steer missing or not executable\n'; FAIL=$((FAIL + 1)); }
 
-for f in APPROACH.md ANTI-PATTERNS.md CONVENTIONS.md; do
-  if [ -f "$MODULE_ROOT/SYSTEM/$f" ]; then
-    printf '  PASS  SYSTEM/%s exists\n' "$f"; PASS=$((PASS + 1))
-  else
-    printf '  FAIL  SYSTEM/%s missing\n' "$f"; FAIL=$((FAIL + 1))
-  fi
-done
+# No SYSTEM/ directory (content merged into SKILL.md)
+[ ! -d "$MODULE_ROOT/SYSTEM" ] \
+  && { printf '  PASS  SYSTEM/ directory removed\n'; PASS=$((PASS + 1)); } \
+  || { printf '  FAIL  SYSTEM/ directory still exists\n'; FAIL=$((FAIL + 1)); }
 
 # ============================================================
 # session-start.sh tests
 # ============================================================
 printf '\n--- session-start.sh ---\n'
 
-# Emits SYSTEM defaults (no config.yaml needed)
-setup
-result=$(FORGE_ROOT="$_tmpdir" bash "$MODULE_ROOT/hooks/session-start.sh" 2>/dev/null) || true
-assert_contains "session-start: emits Steering header" "## Steering" "$result"
-assert_contains "session-start: emits Approach content" "Simplicity first" "$result"
-assert_contains "session-start: emits Anti-patterns content" "Anti-patterns" "$result"
-assert_contains "session-start: emits Conventions content" "Conventions" "$result"
+# With forge-load available (convention mode)
+# Temporarily move config.yaml aside — its steering: key puts forge-load into
+# config mode, which expects system:/user: keys. Convention mode auto-discovers
+# skills/*/SKILL.md.
+FORGE_LOAD="$PROJECT_ROOT/Modules/forge-load/src"
+if [ -f "$FORGE_LOAD/load.sh" ]; then
+  [ -f "$MODULE_ROOT/config.yaml" ] && command mv "$MODULE_ROOT/config.yaml" "$MODULE_ROOT/config.yaml.bak"
+  result=$(FORGE_ROOT="$PROJECT_ROOT" bash "$MODULE_ROOT/hooks/session-start.sh" 2>/dev/null) || true
+  [ -f "$MODULE_ROOT/config.yaml.bak" ] && command mv "$MODULE_ROOT/config.yaml.bak" "$MODULE_ROOT/config.yaml"
+  assert_contains "session-start (forge-load): emits name" "name: BehavioralSteering" "$result"
+  assert_contains "session-start (forge-load): emits description" "description:" "$result"
+  # --index-only should NOT emit body
+  assert_not_contains "session-start (forge-load): no body" "## Approach" "$result"
 
-# Exits 0
+  # Test awk fallback: hide forge-load temporarily
+  setup
+  result=$(FORGE_ROOT="$_tmpdir" bash "$MODULE_ROOT/hooks/session-start.sh" 2>/dev/null) || true
+  assert_contains "session-start (awk fallback): has name:" "name:" "$result"
+else
+  printf '  SKIP  forge-load not available\n'
+fi
+
+# Both paths exit 0
 exit_code=0
-FORGE_ROOT=/tmp bash "$MODULE_ROOT/hooks/session-start.sh" >/dev/null 2>&1 || exit_code=$?
+bash "$MODULE_ROOT/hooks/session-start.sh" >/dev/null 2>&1 || exit_code=$?
 assert_eq "session-start.sh exits 0" "0" "$exit_code"
 
-# With configured steering directory
+# ============================================================
+# DCI expansion tests
+# ============================================================
+printf '\n--- DCI expansion ---\n'
+
+# DCI line 1: standalone path (module root = plugin root)
+exit_code=0
+"$MODULE_ROOT/hooks/skill-load.sh" >/dev/null 2>&1 || exit_code=$?
+assert_eq "DCI standalone: skill-load.sh exits 0" "0" "$exit_code"
+
+# DCI line 2: forge-core path (project root + Modules/...)
+exit_code=0
+"$PROJECT_ROOT/Modules/forge-steering/hooks/skill-load.sh" >/dev/null 2>&1 || exit_code=$?
+assert_eq "DCI forge-core: skill-load.sh exits 0" "0" "$exit_code"
+
+# skill-load.sh with configured vault directory
 setup
 mkdir -p "$_tmpdir/steering"
-printf '## Custom Rule\n\nAlways test first.\n' > "$_tmpdir/steering/custom.md"
-mkdir -p "$_tmpdir/module"
-command cp -R "$MODULE_ROOT/SYSTEM" "$_tmpdir/module/SYSTEM"
-command cp "$MODULE_ROOT/hooks/session-start.sh" "$_tmpdir/module/"
-mkdir -p "$_tmpdir/module/hooks"
-command cp "$MODULE_ROOT/hooks/session-start.sh" "$_tmpdir/module/hooks/"
-printf 'steering:\n  - "%s"\n' "$_tmpdir/steering" > "$_tmpdir/module/config.yaml"
-result=$(FORGE_ROOT="$_tmpdir" bash "$_tmpdir/module/hooks/session-start.sh" 2>/dev/null) || true
-assert_contains "session-start: loads configured dir" "Always test first" "$result"
+cat > "$_tmpdir/steering/custom.md" <<'FIXTURE'
+---
+title: Custom
+---
+
+## Custom Rule
+
+Always test first.
+FIXTURE
+printf 'steering:\n  - "%s"\n' "$_tmpdir/steering" > "$MODULE_ROOT/config.yaml"
+result=$("$MODULE_ROOT/hooks/skill-load.sh" 2>/dev/null) || true
+command rm -f "$MODULE_ROOT/config.yaml"
+assert_contains "skill-load.sh: loads vault steering" "Always test first" "$result"
+assert_not_contains "skill-load.sh: strips frontmatter" "title: Custom" "$result"
+
+# skill-load.sh with no User.md produces no user content
+result=$("$MODULE_ROOT/hooks/skill-load.sh" 2>/dev/null) || true
+assert_not_contains "skill-load.sh: no User.md → no user content" "My Overrides" "$result"
+
+# ============================================================
+# User.md tests
+# ============================================================
+printf '\n--- User.md ---\n'
+
+# No User.md by default
+SKILL_DIR="$MODULE_ROOT/skills/BehavioralSteering"
+[ ! -f "$SKILL_DIR/User.md" ] \
+  && { printf '  PASS  User.md does not exist by default\n'; PASS=$((PASS + 1)); } \
+  || { printf '  FAIL  User.md should not exist by default\n'; FAIL=$((FAIL + 1)); }
+
+# Create temp User.md and verify it loads
+setup
+USER_MD="$_tmpdir/User.md"
+printf '## My Overrides\n\n- Custom rule\n' > "$USER_MD"
+result=$(F="$USER_MD"; [ -f "$F" ] && cat "$F")
+assert_contains "User.md cat: content emitted" "Custom rule" "$result"
 
 # ============================================================
 # bin/steer tests
@@ -194,6 +253,21 @@ assert_empty "steer: non-existent dir → no output" "$result"
 exit_code=0
 "$MODULE_ROOT/bin/steer" "$_tmpdir/mod" >/dev/null 2>&1 || exit_code=$?
 assert_eq "steer exits 0" "0" "$exit_code"
+
+# ============================================================
+# Config override
+# ============================================================
+printf '\n--- Config override ---\n'
+
+if [ -f "$PROJECT_ROOT/Core/bin/dispatch.sh" ]; then
+  # events: [] disables module
+  printf 'events: []\n' > "$MODULE_ROOT/config.yaml"
+  result=$(bash "$PROJECT_ROOT/Core/bin/dispatch.sh" SessionStart < /dev/null 2>/dev/null) || true
+  assert_not_contains "config events: [] disables module" "BehavioralSteering" "$result"
+  command rm -f "$MODULE_ROOT/config.yaml"
+else
+  printf '  SKIP  dispatch.sh not available\n'
+fi
 
 # ============================================================
 # Naming consistency

@@ -1,6 +1,6 @@
 name: forge-steering
-version: 0.2.0
-description: Behavioral steering rules. USE WHEN you need approach, anti-pattern, or convention guidance.
+version: 0.3.0
+description: Behavioral steering rules — approach, anti-patterns, and conventions. USE WHEN making implementation decisions, reviewing code, or starting any task.
 events:
   - SessionStart
 metadata:
