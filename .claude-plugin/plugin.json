@@ -1,6 +1,7 @@
 {
   "name": "forge-steering",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Behavioral steering rules for AI sessions. Loads approach, anti-patterns, and conventions at SessionStart.",
-  "author": { "name": "N4M3Z" }
+  "author": { "name": "N4M3Z" },
+  "hooks": "./hooks/hooks.json"
 }

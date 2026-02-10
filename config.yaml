@@ -1,9 +1,0 @@
-# forge-steering configuration
-#
-# Steering directories (relative to CLAUDE_PROJECT_ROOT).
-# Plugin SYSTEM/ defaults always load first.
-# Configured directories layer on top in order — later = higher LLM weight.
-# If forge-obsidian is installed, frontmatter is stripped automatically.
-# If not, vault files load as-is (extra YAML tokens, still functional).
-steering_dirs:
-  - "Vaults/Personal/Orchestration/Steering"

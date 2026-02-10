@@ -1,53 +1,58 @@
 #!/usr/bin/env bash
-# SessionStart hook: emit behavioral steering rules.
-# Loads SYSTEM/ defaults, then any configured steering_dirs.
-#
-# Dual-mode: works standalone (CLAUDE_PLUGIN_ROOT) or as forge-core module (FORGE_MODULE_ROOT).
+# SessionStart: emit behavioral steering rules.
+# Loads SYSTEM/ defaults, then any configured steering directories.
 set -euo pipefail
 
-MODULE_ROOT="${FORGE_MODULE_ROOT:-${CLAUDE_PLUGIN_ROOT:-$(builtin cd "$(dirname "$0")/.." && pwd)}}"
-PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$(builtin cd "$MODULE_ROOT/../.." && pwd)}"
+MODULE_ROOT="$(builtin cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="${FORGE_ROOT:-$(builtin cd "$MODULE_ROOT/../.." && pwd)}"
 
-# Source strip-front: forge-core shared lib > local lib > inline fallback
-HAS_STRIP=false
+# Source strip_front: forge-core shared lib > inline fallback
 if [ -n "${FORGE_LIB:-}" ] && [ -f "$FORGE_LIB/strip-front.sh" ]; then
   source "$FORGE_LIB/strip-front.sh"
-  HAS_STRIP=true
-elif [ -f "$MODULE_ROOT/lib/strip-front.sh" ]; then
-  source "$MODULE_ROOT/lib/strip-front.sh"
-  HAS_STRIP=true
+elif ! type strip_front &>/dev/null; then
+  strip_front() {
+    awk '
+      /^---$/ && !started { started=1; skip=1; next }
+      /^---$/ && skip     { skip=0; next }
+      skip                { next }
+      !body && /^# /      { body=1; next }
+      { body=1; print }
+    ' "$1"
+  }
 fi
 
-# Parse steering_dirs from config.yaml (no yq dependency)
+# Parse steering paths from config.yaml (user overrides) or module.yaml (defaults)
 CONFIG="$MODULE_ROOT/config.yaml"
+[ -f "$CONFIG" ] || CONFIG="$MODULE_ROOT/module.yaml"
 DIRS=()
 if [ -f "$CONFIG" ]; then
   while IFS= read -r line; do
     dir=$(echo "$line" | sed 's/^[[:space:]]*-[[:space:]]*//' | sed 's/^["'"'"']//;s/["'"'"']$//')
     [ -n "$dir" ] && DIRS+=("$dir")
-  done < <(grep -A 100 '^steering_dirs:' "$CONFIG" | tail -n +2 | grep '^[[:space:]]*-' || true)
+  done < <(awk '/^steering:/{f=1;next} f && /^[[:space:]]*-/{print} f && /^[^ ]/{exit}' "$CONFIG")
 fi
 
 # Collect output
 output=""
 
-# Emit SYSTEM defaults (pre-stripped, just cat)
+# Emit SYSTEM defaults (pre-stripped, no frontmatter needed)
 for f in "$MODULE_ROOT"/SYSTEM/*.md; do
   [ -f "$f" ] || continue
   output+="$(cat "$f")"$'\n\n'
 done
 
-# Emit configured steering dirs
+# Emit configured steering directories
 for dir in "${DIRS[@]}"; do
-  abs_dir="$PROJECT_ROOT/$dir"
+  # Resolve absolute or relative-to-project paths
+  if [[ "$dir" == /* ]]; then
+    abs_dir="$dir"
+  else
+    abs_dir="$PROJECT_ROOT/$dir"
+  fi
   [ -d "$abs_dir" ] || continue
   for f in "$abs_dir"/*.md; do
     [ -f "$f" ] || continue
-    if [ "$HAS_STRIP" = true ]; then
-      output+="$(strip_front "$f")"$'\n\n'
-    else
-      output+="$(cat "$f")"$'\n\n'
-    fi
+    output+="$(strip_front "$f")"$'\n\n'
   done
 done
 

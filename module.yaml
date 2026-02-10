@@ -1,3 +1,12 @@
 name: forge-steering
-version: 0.1.0
-description: Behavioral steering rules emitted at SessionStart
+version: 0.2.0
+description: Behavioral steering rules. USE WHEN you need approach, anti-pattern, or convention guidance.
+events:
+  - SessionStart
+metadata:
+  name: [name, title]
+  description: description
+
+# External steering paths — override in config.yaml (gitignored).
+steering: []
+  # - /path/to/your/steering/directory/

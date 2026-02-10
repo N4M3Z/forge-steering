@@ -1,7 +1,19 @@
 # macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
 
-# User config override (defaults.yaml is the checked-in default)
+# Editors
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# User config override (gitignored — user creates to configure)
 config.yaml
 
 # Claude Code
