@@ -195,9 +195,14 @@ title: Custom
 
 Always test first.
 FIXTURE
+[ -f "$MODULE_ROOT/config.yaml" ] && command cp "$MODULE_ROOT/config.yaml" "$MODULE_ROOT/config.yaml.bak"
 printf 'steering:\n  - "%s"\n' "$_tmpdir/steering" > "$MODULE_ROOT/config.yaml"
 result=$("$MODULE_ROOT/hooks/skill-load.sh" 2>/dev/null) || true
-command rm -f "$MODULE_ROOT/config.yaml"
+if [ -f "$MODULE_ROOT/config.yaml.bak" ]; then
+  command mv "$MODULE_ROOT/config.yaml.bak" "$MODULE_ROOT/config.yaml"
+else
+  command rm -f "$MODULE_ROOT/config.yaml"
+fi
 assert_contains "skill-load.sh: loads vault steering" "Always test first" "$result"
 assert_not_contains "skill-load.sh: strips frontmatter" "title: Custom" "$result"
 
@@ -261,10 +266,15 @@ printf '\n--- Config override ---\n'
 
 if [ -f "$PROJECT_ROOT/Core/bin/dispatch.sh" ]; then
   # events: [] disables module
+  [ -f "$MODULE_ROOT/config.yaml" ] && command cp "$MODULE_ROOT/config.yaml" "$MODULE_ROOT/config.yaml.bak"
   printf 'events: []\n' > "$MODULE_ROOT/config.yaml"
   result=$(bash "$PROJECT_ROOT/Core/bin/dispatch.sh" SessionStart < /dev/null 2>/dev/null) || true
   assert_not_contains "config events: [] disables module" "BehavioralSteering" "$result"
-  command rm -f "$MODULE_ROOT/config.yaml"
+  if [ -f "$MODULE_ROOT/config.yaml.bak" ]; then
+    command mv "$MODULE_ROOT/config.yaml.bak" "$MODULE_ROOT/config.yaml"
+  else
+    command rm -f "$MODULE_ROOT/config.yaml"
+  fi
 else
   printf '  SKIP  dispatch.sh not available\n'
 fi
