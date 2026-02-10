@@ -23,10 +23,10 @@ When you encounter these situations, the intuitive response is wrong:
 
 ## Conventions
 
-- Every ★ Insight block you output MUST also be captured as a Memory/Learnings/ file. No ephemeral insights.
-- Memory files (decisions, learnings, ideas) link back to their originating daily note in the body.
+- Every ★ Insight block you output MUST also be captured as a Memory/Insights/ file. No ephemeral insights.
+- Memory files (decisions, insights, ideas) link back to their originating daily note in the body.
 - One-liner daily log entries — detail lives in the project work log, not the daily journal.
-- One file per decision, learning, or idea — never accumulate lists in a single file.
+- One file per decision, insight, or idea — never accumulate lists in a single file.
 
 !`"${CLAUDE_PLUGIN_ROOT}/hooks/skill-load.sh" 2>/dev/null`
 !`"${CLAUDE_PLUGIN_ROOT}/Modules/forge-steering/hooks/skill-load.sh" 2>/dev/null`
