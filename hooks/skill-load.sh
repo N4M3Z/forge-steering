@@ -36,7 +36,7 @@ for path in "${DIRS[@]}"; do
   if [[ "$path" == /* ]]; then
     abs_path="$path"
   else
-    abs_path="$PROJECT_ROOT/$path"
+    abs_path="${FORGE_USER_ROOT:-$PROJECT_ROOT}/$path"
   fi
 
   if [ -f "$abs_path" ]; then

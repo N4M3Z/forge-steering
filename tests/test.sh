@@ -319,7 +319,7 @@ assert_eq "steer exits 0" "0" "$exit_code"
 # ============================================================
 printf '\n--- Vault steering structure ---\n'
 
-VAULT_STEERING="$PROJECT_ROOT/Vaults/Personal/Orchestration/Steering"
+VAULT_STEERING="${FORGE_USER_ROOT:-$PROJECT_ROOT/Vaults/Personal}/Orchestration/Steering"
 if [ -d "$VAULT_STEERING" ]; then
   for skill in VaultOperations MemoryInsights BacklogJournals; do
     [ -f "$VAULT_STEERING/$skill/SKILL.md" ] \
@@ -338,11 +338,11 @@ fi
 # ============================================================
 printf '\n--- Config override ---\n'
 
-if [ -f "$PROJECT_ROOT/Core/bin/dispatch.sh" ]; then
+if [ -x "$PROJECT_ROOT/Core/bin/dispatch" ]; then
   # events: [] disables module
   [ -f "$MODULE_ROOT/config.yaml" ] && command cp "$MODULE_ROOT/config.yaml" "$MODULE_ROOT/config.yaml.bak"
   printf 'events: []\n' > "$MODULE_ROOT/config.yaml"
-  result=$(bash "$PROJECT_ROOT/Core/bin/dispatch.sh" SessionStart < /dev/null 2>/dev/null) || true
+  result=$(CLAUDE_PLUGIN_ROOT="$PROJECT_ROOT" "$PROJECT_ROOT/Core/bin/dispatch" SessionStart < /dev/null 2>/dev/null) || true
   assert_not_contains "config events: [] disables module" "BehavioralSteering" "$result"
   if [ -f "$MODULE_ROOT/config.yaml.bak" ]; then
     command mv "$MODULE_ROOT/config.yaml.bak" "$MODULE_ROOT/config.yaml"
@@ -350,7 +350,7 @@ if [ -f "$PROJECT_ROOT/Core/bin/dispatch.sh" ]; then
     command rm -f "$MODULE_ROOT/config.yaml"
   fi
 else
-  printf '  SKIP  dispatch.sh not available\n'
+  printf '  SKIP  dispatch binary not available\n'
 fi
 
 # ============================================================

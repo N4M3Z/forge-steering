@@ -52,7 +52,7 @@ events:
 
 ```yaml
 steering:
-  - "Vaults/Personal/Orchestration/Behaviour"
+  - "Orchestration/Behaviour"
 ```
 
 When `steering:` paths contain subdirectories with `SKILL.md` files, `forge-update.sh` auto-injects them into `plugin.json` as additional skill sources. This enables the vault Behaviour workspace for drafting and iterating on rules in Obsidian before promoting them to modules.
