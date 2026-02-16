@@ -42,5 +42,4 @@ Rules derived from recurring failure patterns. Format: Statement / Bad / Correct
 **Bad:** Create `utils/helper.ts` for a function that could live in the existing module.
 **Correct:** Add the function to the existing file where it's needed. Only create files when structurally required.
 
-!`"${CLAUDE_PLUGIN_ROOT}/hooks/skill-load.sh" 2>/dev/null`
-!`"${CLAUDE_PLUGIN_ROOT}/Modules/forge-steering/hooks/skill-load.sh" 2>/dev/null`
+!`dispatch skill-load forge-steering`
