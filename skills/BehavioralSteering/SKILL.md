@@ -42,4 +42,9 @@ Rules derived from recurring failure patterns. Format: Statement / Bad / Correct
 **Bad:** Create `utils/helper.ts` for a function that could live in the existing module.
 **Correct:** Add the function to the existing file where it's needed. Only create files when structurally required.
 
+### No Monolithic Project Files
+**Statement:** Never create or append to monolithic project-level instruction files (TOOLS.md, etc.). Promote knowledge through the vault pipeline instead.
+**Bad:** Add a new tool to TOOLS.md. Create a CONVENTIONS.md dumping ground at project root.
+**Correct:** Capture the insight as a Memory/Insight note. If it's operational, promote it to a skill via /MemoryPromote. If it's a tool, document it in the module's README.
+
 !`dispatch skill-load forge-steering`
