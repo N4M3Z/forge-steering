@@ -1,6 +1,8 @@
-# forge-steering — test and lint
+# forge-steering Makefile
 
-.PHONY: help test lint check
+LIB_DIR = $(or $(FORGE_LIB),lib)
+
+.PHONY: help test lint check init
 
 help:
 	@echo "forge-steering targets:"
@@ -8,14 +10,12 @@ help:
 	@echo "  make lint    Shellcheck all scripts"
 	@echo "  make check   Verify module structure"
 
-test:
-	@if [ -f tests/test.sh ]; then bash tests/test.sh; else echo "No tests defined"; fi
-
-lint:
-	@if find . -name '*.sh' -not -path '*/target/*' | grep -q .; then \
-	  find . -name '*.sh' -not -path '*/target/*' | xargs shellcheck -S warning 2>/dev/null || true; \
+init:
+	@if [ ! -d $(LIB_DIR)/mk ]; then \
+	  echo "Initializing forge-lib submodule..."; \
+	  git submodule update --init $(LIB_DIR); \
 	fi
 
-check:
-	@test -f module.yaml && echo "  ok module.yaml" || echo "  MISSING module.yaml"
-	@test -d hooks && echo "  ok hooks/" || echo "  MISSING hooks/"
+ifneq ($(wildcard $(LIB_DIR)/mk/shell.mk),)
+  include $(LIB_DIR)/mk/shell.mk
+endif
