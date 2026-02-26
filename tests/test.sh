@@ -3,8 +3,8 @@
 # Run: bash Modules/forge-steering/tests/test.sh
 set -uo pipefail
 
-MODULE_ROOT="$(builtin cd "$(dirname "$0")/.." && pwd)"
-PROJECT_ROOT="$(builtin cd "$MODULE_ROOT/../.." && pwd)"
+MODULE_ROOT="$(command cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(command cd "$MODULE_ROOT/../.." && pwd)"
 PASS=0 FAIL=0
 
 # --- Helpers ---
@@ -338,11 +338,12 @@ fi
 # ============================================================
 printf '\n--- Config override ---\n'
 
-if [ -x "$PROJECT_ROOT/Core/bin/dispatch" ]; then
+DISPATCH_BIN="$MODULE_ROOT/target/release/dispatch"
+if [ -x "$DISPATCH_BIN" ]; then
   # events: [] disables module
   [ -f "$MODULE_ROOT/config.yaml" ] && command cp "$MODULE_ROOT/config.yaml" "$MODULE_ROOT/config.yaml.bak"
   printf 'events: []\n' > "$MODULE_ROOT/config.yaml"
-  result=$(CLAUDE_PLUGIN_ROOT="$PROJECT_ROOT" "$PROJECT_ROOT/Core/bin/dispatch" SessionStart < /dev/null 2>/dev/null) || true
+  result=$(FORGE_ROOT="$PROJECT_ROOT" "$DISPATCH_BIN" SessionStart < /dev/null 2>/dev/null) || true
   assert_not_contains "config events: [] disables module" "BehavioralSteering" "$result"
   if [ -f "$MODULE_ROOT/config.yaml.bak" ]; then
     command mv "$MODULE_ROOT/config.yaml.bak" "$MODULE_ROOT/config.yaml"
