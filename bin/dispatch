@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Thin wrapper — lazy-builds and execs the Rust dispatch binary.
+set -euo pipefail
+
+PLUGIN_ROOT="${FORGE_MODULE_ROOT:-${CLAUDE_PLUGIN_ROOT:-$(command cd "$(dirname "$0")/.." && pwd)}}"
+BIN="$PLUGIN_ROOT/target/release/dispatch"
+
+if [ ! -x "$BIN" ]; then
+  MANIFEST="$PLUGIN_ROOT/Cargo.toml"
+  [ ! -f "$MANIFEST" ] && exit 0
+
+  CARGO=""
+  if command -v cargo >/dev/null 2>&1; then
+    CARGO=cargo
+  else
+    for candidate in "$HOME/.cargo/bin/cargo" /opt/homebrew/bin/cargo /usr/local/bin/cargo; do
+      if [ -x "$candidate" ]; then
+        CARGO="$candidate"
+        break
+      fi
+    done
+  fi
+
+  [ -z "$CARGO" ] && exit 0
+  "$CARGO" build --release --manifest-path "$MANIFEST" >&2 || exit 0
+fi
+
+exec "$BIN" "$@"

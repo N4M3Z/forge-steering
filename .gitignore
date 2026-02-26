@@ -21,3 +21,6 @@ skills/*/User.md
 
 # Claude Code
 .claude/
+
+# Rust build artifacts
+target/
